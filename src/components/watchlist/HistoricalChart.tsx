@@ -4,7 +4,7 @@ import { useStockHistory, Timeframe, HistoricalDataPoint } from "@/hooks/useStoc
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Download } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -66,6 +66,29 @@ export function HistoricalChart({ stock }: HistoricalChartProps) {
     };
   }, [data]);
 
+  // CSV download handler
+  const handleDownloadCSV = () => {
+    if (data.length === 0) return;
+
+    const headers = ["Date", "Open", "High", "Low", "Close", "Volume"];
+    const rows = data.map((point) => {
+      const date = new Date(point.date).toISOString().split("T")[0];
+      return [date, point.open, point.high, point.low, point.close, point.volume].join(",");
+    });
+
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${stock.symbol}_historical_${timeframe}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Format chart data
   const chartData = useMemo(() => {
     return data.map((point) => ({
@@ -111,6 +134,17 @@ export function HistoricalChart({ stock }: HistoricalChartProps) {
               <Badge variant="outline" className="text-xs text-success border-success/30">
                 {source === "database" ? "Database" : "Live DSE"}
               </Badge>
+            )}
+            {!isLoading && data.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs gap-1"
+                onClick={handleDownloadCSV}
+              >
+                <Download className="h-3.5 w-3.5" />
+                CSV
+              </Button>
             )}
           </div>
 
