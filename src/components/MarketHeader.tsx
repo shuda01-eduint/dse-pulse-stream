@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { StockSearch } from "./StockSearch";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface MarketHeaderProps {
   status: MarketStatus;
@@ -28,6 +29,7 @@ export function MarketHeader({
 }: MarketHeaderProps) {
   const { watchlist } = useWatchlist();
   const { portfolio } = usePortfolio();
+  const { isAdmin, isLoading: isRoleLoading } = useUserRole();
 
   return (
     <header className="border-b border-border/50 bg-gradient-to-r from-card via-card to-card/80 px-2 py-2 sm:px-4 sm:py-3 md:px-6 backdrop-blur-sm">
@@ -139,16 +141,18 @@ export function MarketHeader({
                 <span className="hidden xs:inline sm:inline">Historical</span>
               </Button>
             </Link>
-            <Link to="/admin">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="gap-1 sm:gap-1.5 rounded-full px-2 sm:px-3 h-8 sm:h-9 text-xs hover:bg-primary/10 hover:text-primary transition-colors flex-shrink-0"
-              >
-                <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden xs:inline sm:inline">Admin</span>
-              </Button>
-            </Link>
+            {!isRoleLoading && isAdmin && (
+              <Link to="/admin">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="gap-1 sm:gap-1.5 rounded-full px-2 sm:px-3 h-8 sm:h-9 text-xs hover:bg-primary/10 hover:text-primary transition-colors flex-shrink-0"
+                >
+                  <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden xs:inline sm:inline">Admin</span>
+                </Button>
+              </Link>
+            )}
 
             {/* Desktop Update Info */}
             <div className="hidden lg:flex items-center gap-3 rounded-full bg-secondary/60 px-4 py-1.5 border border-border/50 ml-auto">
