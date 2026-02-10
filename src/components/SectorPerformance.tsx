@@ -47,7 +47,7 @@ export function SectorPerformance({ stocks }: SectorPerformanceProps) {
           avgChange,
         };
       })
-      .sort((a, b) => b.value - a.value);
+      .sort((a, b) => b.avgChange - a.avgChange);
 
     return result;
   }, [stocks]);
