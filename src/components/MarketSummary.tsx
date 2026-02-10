@@ -1,11 +1,13 @@
-import { BarChart3, Activity, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { BarChart3, Activity, DollarSign, TrendingUp, TrendingDown, LineChart } from "lucide-react";
 import { Stock } from "@/types/market";
+import { DSEXIndex } from "@/hooks/useMarketData";
 
 interface MarketSummaryProps {
   stocks: Stock[];
+  dsexIndex?: DSEXIndex | null;
 }
 
-export function MarketSummary({ stocks }: MarketSummaryProps) {
+export function MarketSummary({ stocks, dsexIndex }: MarketSummaryProps) {
   const totalTrade = stocks.reduce((sum, s) => sum + s.trade, 0);
   const totalVolume = stocks.reduce((sum, s) => sum + s.volume, 0);
   const totalValueMn = stocks.reduce((sum, s) => sum + s.valueMn, 0);
@@ -24,7 +26,22 @@ export function MarketSummary({ stocks }: MarketSummaryProps) {
     return valueMn.toFixed(2) + "M";
   };
 
+  const dsexIsUp = dsexIndex ? dsexIndex.change >= 0 : true;
+
   const stats = [
+    ...(dsexIndex
+      ? [
+          {
+            label: "DSEX Index",
+            value: dsexIndex.value.toFixed(2),
+            subValue: `${dsexIsUp ? "+" : ""}${dsexIndex.change.toFixed(2)} (${dsexIsUp ? "+" : ""}${dsexIndex.changePercent.toFixed(2)}%)`,
+            icon: LineChart,
+            color: dsexIsUp ? "text-emerald-400" : "text-rose-400",
+            bgColor: dsexIsUp ? "bg-emerald-500/20" : "bg-rose-500/20",
+            borderColor: dsexIsUp ? "border-emerald-500/40" : "border-rose-500/40",
+          },
+        ]
+      : []),
     {
       label: "Total Trade",
       value: formatVolume(totalTrade),
@@ -68,7 +85,7 @@ export function MarketSummary({ stocks }: MarketSummaryProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2 xs:gap-3 sm:grid-cols-3 md:grid-cols-5 md:gap-4">
+    <div className="grid grid-cols-2 gap-2 xs:gap-3 sm:grid-cols-3 md:grid-cols-6 md:gap-4">
       {stats.map((stat) => (
         <div
           key={stat.label}
@@ -83,6 +100,11 @@ export function MarketSummary({ stocks }: MarketSummaryProps) {
               <p className={`font-mono text-xs xs:text-sm font-bold md:text-lg ${stat.color}`}>
                 {stat.value}
               </p>
+              {"subValue" in stat && stat.subValue && (
+                <p className={`font-mono text-[8px] xs:text-[9px] md:text-xs font-semibold ${stat.color}`}>
+                  {stat.subValue}
+                </p>
+              )}
             </div>
           </div>
         </div>

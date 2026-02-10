@@ -42,7 +42,7 @@ interface StockData {
 type Cached<T> = { data: T; fetchedAt: number };
 
 const CACHE_TTL_MS = 60_000;
-let cachedMarket: Cached<{ rawStocks: RawStockData[]; timestampText?: string }> | null = null;
+let cachedMarket: Cached<{ rawStocks: RawStockData[]; timestampText?: string; dsexIndex?: { value: number; change: number; changePercent: number } | null }> | null = null;
 
 function stripCommas(s: string) { return s.replace(/,/g, "").trim(); }
 function decodeHtmlEntities(input: string) {
@@ -156,10 +156,37 @@ function getSectorFromSymbol(symbol: string): string {
   return "Others";
 }
 
+interface IndexData {
+  value: number;
+  change: number;
+  changePercent: number;
+}
+
 function extractTimestampTextFromMarketPage(html: string): string | undefined {
   const m = html.match(/<h2[^>]*class="BodyHead topBodyHead"[^>]*>([\s\S]*?)<\/h2>/i);
   if (!m) return undefined;
   return decodeHtmlEntities(m[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
+}
+
+async function fetchDSEXIndex(): Promise<IndexData | null> {
+  try {
+    const html = await fetchWithRetry("https://www.dsebd.org", 2, 500);
+    // Find the DSEX row: <div class="m_col-1">DSE<font size="+1">X</font> Index</div>
+    const dsexMatch = html.match(
+      /DSE<font[^>]*>X<\/font>\s*Index<\/div>\s*<div[^>]*>\s*([\d.,]+)\s*<\/div>\s*<div[^>]*>\s*([-\d.,]+)\s*<\/div>\s*<div[^>]*>\s*([-\d.,]+)%/i
+    );
+    if (dsexMatch) {
+      return {
+        value: parseNumber(dsexMatch[1]),
+        change: parseNumber(dsexMatch[2]),
+        changePercent: parseNumber(dsexMatch[3]),
+      };
+    }
+    return null;
+  } catch (e) {
+    console.warn("Failed to fetch DSEX index:", e);
+    return null;
+  }
 }
 
 function parseMarketStocks(html: string): RawStockData[] {
@@ -247,30 +274,33 @@ function generateFallbackData(): RawStockData[] {
   });
 }
 
-async function getRawMarketSnapshot(): Promise<{ rawStocks: RawStockData[]; timestampText?: string }> {
+async function getRawMarketSnapshot(): Promise<{ rawStocks: RawStockData[]; timestampText?: string; dsexIndex?: IndexData | null }> {
   const now = Date.now();
   if (cachedMarket && now - cachedMarket.fetchedAt < CACHE_TTL_MS) return cachedMarket.data;
   
   try {
-    const marketHtml = await fetchWithRetry("https://www.dsebd.org/latest_share_price_scroll_by_ltp.php", 3, 1000);
+    const [marketHtml, dsexIndex] = await Promise.all([
+      fetchWithRetry("https://www.dsebd.org/latest_share_price_scroll_by_ltp.php", 3, 1000),
+      fetchDSEXIndex(),
+    ]);
     const timestampText = extractTimestampTextFromMarketPage(marketHtml);
     const rawStocks = parseMarketStocks(marketHtml);
     
     if (rawStocks.length === 0) {
       console.warn("No stocks parsed from DSE website, using fallback data");
       const fallbackStocks = generateFallbackData();
-      const data = { rawStocks: fallbackStocks, timestampText: "Demo Data - DSE Unavailable" };
+      const data = { rawStocks: fallbackStocks, timestampText: "Demo Data - DSE Unavailable", dsexIndex };
       cachedMarket = { data, fetchedAt: now };
       return data;
     }
     
-    const data = { rawStocks, timestampText };
+    const data = { rawStocks, timestampText, dsexIndex };
     cachedMarket = { data, fetchedAt: now };
     return data;
   } catch (error) {
     console.error("Error fetching from DSE, using fallback:", error);
     const fallbackStocks = generateFallbackData();
-    const data = { rawStocks: fallbackStocks, timestampText: "Demo Data - DSE Unavailable" };
+    const data = { rawStocks: fallbackStocks, timestampText: "Demo Data - DSE Unavailable", dsexIndex: null };
     cachedMarket = { data, fetchedAt: now };
     return data;
   }
@@ -283,16 +313,16 @@ serve(async (req) => {
     let stockCode = url.searchParams.get("code") || undefined;
     if (!stockCode && req.method !== "GET") { try { const body = await req.json(); if (body?.code) stockCode = body.code; } catch {} }
     console.log(`Market data request - code: ${stockCode || "all"}`);
-    const { rawStocks, timestampText } = await getRawMarketSnapshot();
+    const { rawStocks, timestampText, dsexIndex } = await getRawMarketSnapshot();
     const marketOpen = isMarketOpen();
     const stocks = rawStocks.map((raw) => computeStockData(raw, marketOpen));
     if (stockCode) {
       const stock = stocks.find((s) => s.symbol.toUpperCase() === stockCode!.toUpperCase());
       if (!stock) return new Response(JSON.stringify({ error: "Stock not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(JSON.stringify({ data: stock, marketOpen, timestamp: new Date().toISOString(), sourceTimestampText: timestampText }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ data: stock, marketOpen, timestamp: new Date().toISOString(), sourceTimestampText: timestampText, dsexIndex }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const sortedStocks = [...stocks].sort((a, b) => a.symbol.localeCompare(b.symbol));
-    return new Response(JSON.stringify({ data: sortedStocks, marketOpen, timestamp: new Date().toISOString(), sourceTimestampText: timestampText, count: sortedStocks.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ data: sortedStocks, marketOpen, timestamp: new Date().toISOString(), sourceTimestampText: timestampText, count: sortedStocks.length, dsexIndex }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     console.error("Error in market-data function:", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
