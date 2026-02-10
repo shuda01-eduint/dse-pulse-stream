@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Stock } from "@/types/market";
 import { 
   SECTOR_COLORS, 
@@ -12,23 +12,25 @@ interface SectorPerformanceProps {
 }
 
 export function SectorPerformance({ stocks }: SectorPerformanceProps) {
-  const sectorData = useMemo(() => {
+  const { barData, sectorSummary } = useMemo(() => {
     const sectors: Record<string, { 
       value: number; 
       stocks: Stock[];
+      categoryValues: Record<string, number>;
     }> = {};
 
     stocks.forEach(stock => {
-      // Use official sector from API, fallback to "Others" if empty
       const sector = stock.sector?.trim() || "Others";
+      const category = stock.category?.trim() || "N";
       if (!sectors[sector]) {
-        sectors[sector] = { value: 0, stocks: [] };
+        sectors[sector] = { value: 0, stocks: [], categoryValues: {} };
       }
       sectors[sector].value += stock.valueMn;
       sectors[sector].stocks.push(stock);
+      sectors[sector].categoryValues[category] = (sectors[sector].categoryValues[category] || 0) + stock.valueMn;
     });
 
-    const result: Omit<SectorData, 'stockList'>[] = Object.entries(sectors)
+    const summary = Object.entries(sectors)
       .map(([name, data]) => {
         const advancers = data.stocks.filter(s => s.change > 0).length;
         const decliners = data.stocks.filter(s => s.change < 0).length;
@@ -40,47 +42,65 @@ export function SectorPerformance({ stocks }: SectorPerformanceProps) {
         return {
           name,
           value: data.value,
-          stocks: data.stocks.length,
+          stockCount: data.stocks.length,
           advancers,
           decliners,
           unchanged,
           avgChange,
+          A: data.categoryValues["A"] || 0,
+          B: data.categoryValues["B"] || 0,
+          N: data.categoryValues["N"] || 0,
+          Z: data.categoryValues["Z"] || 0,
         };
       })
-      .sort((a, b) => b.avgChange - a.avgChange);
+      .sort((a, b) => b.value - a.value);
 
-    return result;
+    return { barData: summary, sectorSummary: summary };
   }, [stocks]);
 
-  const totalValue = sectorData.reduce((sum, s) => sum + s.value, 0);
+  const totalValue = barData.reduce((sum, s) => sum + s.value, 0);
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CATEGORY_COLORS: Record<string, string> = {
+    A: "hsl(142, 71%, 45%)",
+    B: "hsl(271, 81%, 56%)",
+    N: "hsl(217, 91%, 55%)",
+    Z: "hsl(0, 84%, 55%)",
+  };
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload as Omit<SectorData, 'stockList'>;
-      const percentage = totalValue > 0 ? ((data.value / totalValue) * 100).toFixed(1) : "0";
+      const sector = sectorSummary.find(s => s.name === label);
+      if (!sector) return null;
+      const percentage = totalValue > 0 ? ((sector.value / totalValue) * 100).toFixed(1) : "0";
       
       return (
         <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
-          <p className="font-semibold text-foreground">{data.name}</p>
+          <p className="font-semibold text-foreground">{label}</p>
           <div className="mt-2 space-y-1 text-sm">
             <p>
               <span className="text-muted-foreground">Value: </span>
-              <span className="font-mono font-semibold">{formatValue(data.value)} Tk ({percentage}%)</span>
+              <span className="font-mono font-semibold">{formatValue(sector.value)} Tk ({percentage}%)</span>
             </p>
             <p>
               <span className="text-muted-foreground">Stocks: </span>
-              <span className="font-mono">{data.stocks}</span>
+              <span className="font-mono">{sector.stockCount}</span>
             </p>
             <p>
               <span className="text-muted-foreground">Avg Change: </span>
-              <span className={`font-mono ${data.avgChange > 0 ? 'text-price-up' : data.avgChange < 0 ? 'text-price-down' : 'text-price-neutral'}`}>
-                {data.avgChange > 0 ? '+' : ''}{data.avgChange.toFixed(2)}%
+              <span className={`font-mono ${sector.avgChange > 0 ? 'text-price-up' : sector.avgChange < 0 ? 'text-price-down' : 'text-price-neutral'}`}>
+                {sector.avgChange > 0 ? '+' : ''}{sector.avgChange.toFixed(2)}%
               </span>
             </p>
+            <div className="flex gap-3 pt-1 text-xs">
+              {sector.A > 0 && <span style={{ color: CATEGORY_COLORS.A }}>A: {formatValue(sector.A)}</span>}
+              {sector.B > 0 && <span style={{ color: CATEGORY_COLORS.B }}>B: {formatValue(sector.B)}</span>}
+              {sector.N > 0 && <span style={{ color: CATEGORY_COLORS.N }}>N: {formatValue(sector.N)}</span>}
+              {sector.Z > 0 && <span style={{ color: CATEGORY_COLORS.Z }}>Z: {formatValue(sector.Z)}</span>}
+            </div>
             <div className="flex gap-3 pt-1">
-              <span className="text-price-up">↑{data.advancers}</span>
-              <span className="text-price-down">↓{data.decliners}</span>
-              <span className="text-price-neutral">→{data.unchanged}</span>
+              <span className="text-price-up">↑{sector.advancers}</span>
+              <span className="text-price-down">↓{sector.decliners}</span>
+              <span className="text-price-neutral">→{sector.unchanged}</span>
             </div>
           </div>
         </div>
@@ -89,7 +109,7 @@ export function SectorPerformance({ stocks }: SectorPerformanceProps) {
     return null;
   };
 
-  if (sectorData.length === 0) {
+  if (barData.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-foreground">
         No data available
@@ -98,37 +118,39 @@ export function SectorPerformance({ stocks }: SectorPerformanceProps) {
   }
 
   return (
-    <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
-      {/* Pie Chart */}
-      <div className="h-48 sm:h-64 md:h-80">
+    <div className="space-y-3">
+      {/* Stacked Bar Chart */}
+      <div className="h-64 sm:h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={sectorData}
-              cx="50%"
-              cy="50%"
-              innerRadius={40}
-              outerRadius={70}
-              paddingAngle={2}
-              dataKey="value"
-            >
-              {sectorData.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={SECTOR_COLORS[entry.name] || SECTOR_COLORS["Others"]}
-                  stroke="hsl(var(--background))"
-                  strokeWidth={2}
-                />
-              ))}
-            </Pie>
+          <BarChart data={barData} margin={{ top: 5, right: 5, left: 5, bottom: 60 }}>
+            <XAxis 
+              dataKey="name" 
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              angle={-45}
+              textAnchor="end"
+              interval={0}
+              height={80}
+            />
+            <YAxis 
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              tickFormatter={(v) => formatValue(v)}
+            />
             <Tooltip content={<CustomTooltip />} />
-          </PieChart>
+            <Legend 
+              wrapperStyle={{ fontSize: 12 }}
+              iconType="square"
+            />
+            <Bar dataKey="A" stackId="a" fill={CATEGORY_COLORS.A} name="A" />
+            <Bar dataKey="B" stackId="a" fill={CATEGORY_COLORS.B} name="B" />
+            <Bar dataKey="N" stackId="a" fill={CATEGORY_COLORS.N} name="N" />
+            <Bar dataKey="Z" stackId="a" fill={CATEGORY_COLORS.Z} name="Z" />
+          </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Sector List */}
-      <div className="space-y-1.5 sm:space-y-2 overflow-auto pr-1 sm:pr-2 max-h-48 sm:max-h-64 md:max-h-80">
-        {sectorData.map((sector) => {
+      {/* Sector List - sorted by performance */}
+      <div className="space-y-1.5 sm:space-y-2 overflow-auto pr-1 sm:pr-2 max-h-48 sm:max-h-64">
+        {[...sectorSummary].sort((a, b) => b.avgChange - a.avgChange).map((sector) => {
           const percentage = totalValue > 0 ? ((sector.value / totalValue) * 100).toFixed(1) : "0";
           return (
             <div
@@ -142,7 +164,7 @@ export function SectorPerformance({ stocks }: SectorPerformanceProps) {
                 />
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-foreground truncate">{sector.name}</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">{sector.stocks} stocks</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">{sector.stockCount} stocks</p>
                 </div>
               </div>
               <div className="text-right flex-shrink-0 ml-2">
