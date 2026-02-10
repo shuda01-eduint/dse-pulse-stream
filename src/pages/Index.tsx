@@ -4,7 +4,7 @@ import { MarketHeader } from "@/components/MarketHeader";
 import { MarketSummary } from "@/components/MarketSummary";
 import { StrengthMeter } from "@/components/StrengthMeter";
 import { TopMovers } from "@/components/TopMovers";
-import { ValueChartSection } from "@/components/ValueChartSection";
+
 import { SectorPerformance } from "@/components/SectorPerformance";
 import { MarketTable } from "@/components/MarketTable";
 import { StockDetailModal } from "@/components/StockDetailModal";
@@ -77,12 +77,6 @@ const Index = () => {
           <div>
             <h2 className="mb-2 sm:mb-3 text-sm sm:text-lg font-semibold text-foreground">Top Movers</h2>
             <TopMovers stocks={stocks} onStockClick={handleStockClick} />
-          </div>
-
-          {/* Value Charts - Top 20 Highest/Lowest */}
-          <div>
-            <h2 className="mb-2 sm:mb-3 text-sm sm:text-lg font-semibold text-foreground">Value Analysis</h2>
-            <ValueChartSection stocks={stocks} onStockClick={handleStockClick} />
           </div>
 
           {/* Sectoral Performance */}
