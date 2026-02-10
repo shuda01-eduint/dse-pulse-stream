@@ -17,6 +17,7 @@ import { AlertCircle } from "lucide-react";
 const Index = () => {
   const {
     stocks,
+    dsexIndex,
     status,
     isLoading,
     error,
@@ -67,7 +68,7 @@ const Index = () => {
           <Disclaimer />
 
           {/* Market Summary Stats */}
-          <MarketSummary stocks={stocks} />
+          <MarketSummary stocks={stocks} dsexIndex={dsexIndex} />
 
           {/* Strength Meter & Sentiment */}
           <StrengthMeter stocks={stocks} />

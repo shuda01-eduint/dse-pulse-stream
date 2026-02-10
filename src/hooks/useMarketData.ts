@@ -4,8 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
 
+export interface DSEXIndex {
+  value: number;
+  change: number;
+  changePercent: number;
+}
+
 export function useMarketData() {
   const [stocks, setStocks] = useState<Stock[]>([]);
+  const [dsexIndex, setDsexIndex] = useState<DSEXIndex | null>(null);
   const [status, setStatus] = useState<MarketStatus>({
     isOpen: false,
     lastUpdated: new Date(),
@@ -49,6 +56,10 @@ export function useMarketData() {
         }));
 
         setStocks(transformedStocks);
+
+        if (data.dsexIndex) {
+          setDsexIndex(data.dsexIndex);
+        }
 
         const isOpen = data.marketOpen;
         setStatus({
@@ -98,6 +109,7 @@ export function useMarketData() {
 
   return {
     stocks,
+    dsexIndex,
     status,
     isLoading,
     error,
