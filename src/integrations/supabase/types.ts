@@ -53,6 +53,69 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_fundamentals: {
+        Row: {
+          authorized_cap: number | null
+          category: string | null
+          created_at: string
+          eps: number | null
+          face_value: number | null
+          id: string
+          last_agm: string | null
+          listing_year: number | null
+          market_cap: number | null
+          nav: number | null
+          paid_up_cap: number | null
+          pe: number | null
+          sector: string | null
+          symbol: string
+          total_shares: number | null
+          updated_at: string
+          year_high: number | null
+          year_low: number | null
+        }
+        Insert: {
+          authorized_cap?: number | null
+          category?: string | null
+          created_at?: string
+          eps?: number | null
+          face_value?: number | null
+          id?: string
+          last_agm?: string | null
+          listing_year?: number | null
+          market_cap?: number | null
+          nav?: number | null
+          paid_up_cap?: number | null
+          pe?: number | null
+          sector?: string | null
+          symbol: string
+          total_shares?: number | null
+          updated_at?: string
+          year_high?: number | null
+          year_low?: number | null
+        }
+        Update: {
+          authorized_cap?: number | null
+          category?: string | null
+          created_at?: string
+          eps?: number | null
+          face_value?: number | null
+          id?: string
+          last_agm?: string | null
+          listing_year?: number | null
+          market_cap?: number | null
+          nav?: number | null
+          paid_up_cap?: number | null
+          pe?: number | null
+          sector?: string | null
+          symbol?: string
+          total_shares?: number | null
+          updated_at?: string
+          year_high?: number | null
+          year_low?: number | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
