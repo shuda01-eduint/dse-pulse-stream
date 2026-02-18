@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.save-daily-eod]
 verify_jwt = false
+
+[functions.update-categories]
+verify_jwt = false

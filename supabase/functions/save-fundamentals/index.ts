@@ -102,6 +102,29 @@ function extractEPSandNAV(html: string): { eps?: number; nav?: number } {
   return result;
 }
 
+async function fetchCategoryMap(): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  try {
+    const html = await fetchHtml("https://www.dsebd.org/latest_share_price_scroll_group.php");
+    // Split by category headers like "( Category - A )"
+    const sections = html.split(/\(\s*Category\s*-\s*([A-Z])\s*\)/i);
+    // sections[0] is before first category, then [1]=cat letter, [2]=html, [3]=cat letter, [4]=html...
+    for (let i = 1; i < sections.length - 1; i += 2) {
+      const cat = sections[i].trim().toUpperCase();
+      const sectionHtml = sections[i + 1];
+      // Extract symbols from links like displayCompany.php?name=SYMBOL
+      const symbolMatches = sectionHtml.matchAll(/displayCompany\.php\?name=([^"&]+)/gi);
+      for (const m of symbolMatches) {
+        map.set(m[1].toUpperCase().trim(), cat);
+      }
+    }
+    console.log(`Fetched categories for ${map.size} symbols`);
+  } catch (e) {
+    console.error("Failed to fetch category map:", e);
+  }
+  return map;
+}
+
 async function fetchOneFundamental(symbol: string) {
   const url = `https://www.dsebd.org/displayCompany.php?name=${encodeURIComponent(symbol)}`;
   const html = await fetchHtml(url);
@@ -110,10 +133,6 @@ async function fetchOneFundamental(symbol: string) {
   // Sector
   for (const p of [/Sector[:\s]*<\/th>\s*<td[^>]*>([^<]+)</i, /Sector[:\s]*<\/td>\s*<td[^>]*>([^<]+)</i]) {
     const m = html.match(p); if (m?.[1]) { f.sector = decodeHtmlEntities(m[1]); break; }
-  }
-  // Category
-  for (const p of [/(?:Share\s*)?Category[:\s]*<\/th>\s*<td[^>]*>([^<]+)</i]) {
-    const m = html.match(p); if (m?.[1]) { f.category = decodeHtmlEntities(m[1]); break; }
   }
   // Market Cap
   for (const p of [/Market\s*Cap(?:italization)?\s*\(mn\)[^<]*<\/t[hd]>\s*<td[^>]*>\s*([\d,.-]+)/i, /Market\s*Cap(?:italization)?[^<]*<\/th>\s*<td[^>]*>\s*([\d,.-]+)/i]) {
@@ -173,6 +192,9 @@ serve(async (req) => {
     const marketJson = await marketRes.json();
     const symbols: string[] = (marketJson.data || []).map((s: { symbol: string }) => s.symbol);
 
+    // Fetch category map from DSE
+    const categoryMap = await fetchCategoryMap();
+
     console.log(`Fetching fundamentals for ${symbols.length} stocks...`);
 
     let saved = 0;
@@ -187,7 +209,15 @@ serve(async (req) => {
 
       const rows = results
         .filter((r): r is PromiseFulfilledResult<Record<string, unknown>> => r.status === "fulfilled")
-        .map(r => r.value);
+        .map(r => {
+          const row = r.value;
+          // Apply category from category map
+          const sym = (row.symbol as string).toUpperCase();
+          if (categoryMap.has(sym)) {
+            row.category = categoryMap.get(sym)!;
+          }
+          return row;
+        });
 
       if (rows.length > 0) {
         const { error } = await supabase
