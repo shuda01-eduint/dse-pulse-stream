@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.save-fundamentals]
 verify_jwt = false
+
+[functions.save-daily-eod]
+verify_jwt = false

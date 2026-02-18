@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      daily_stock_eod: {
+        Row: {
+          category: string | null
+          close: number
+          created_at: string
+          date: string
+          id: string
+          sector: string | null
+          symbol: string
+          total_shares: number | null
+          volume: number
+        }
+        Insert: {
+          category?: string | null
+          close: number
+          created_at?: string
+          date: string
+          id?: string
+          sector?: string | null
+          symbol: string
+          total_shares?: number | null
+          volume?: number
+        }
+        Update: {
+          category?: string | null
+          close?: number
+          created_at?: string
+          date?: string
+          id?: string
+          sector?: string | null
+          symbol?: string
+          total_shares?: number | null
+          volume?: number
+        }
+        Relationships: []
+      }
       historical_prices: {
         Row: {
           close: number
