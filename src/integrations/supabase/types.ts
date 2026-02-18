@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           date: string
           id: string
+          pe: number | null
           sector: string | null
           symbol: string
           total_shares: number | null
@@ -32,6 +33,7 @@ export type Database = {
           created_at?: string
           date: string
           id?: string
+          pe?: number | null
           sector?: string | null
           symbol: string
           total_shares?: number | null
@@ -43,6 +45,7 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          pe?: number | null
           sector?: string | null
           symbol?: string
           total_shares?: number | null
