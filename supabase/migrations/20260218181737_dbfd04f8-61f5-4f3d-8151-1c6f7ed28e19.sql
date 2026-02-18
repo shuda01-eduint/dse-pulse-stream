@@ -1,0 +1,1 @@
+ALTER TABLE public.daily_stock_eod ADD COLUMN pe NUMERIC;

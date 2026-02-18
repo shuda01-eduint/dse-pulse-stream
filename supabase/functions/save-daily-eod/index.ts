@@ -58,15 +58,16 @@ serve(async (req) => {
     // Fetch fundamentals from DB for total_shares, category, sector
     const { data: fundamentals } = await supabase
       .from("stock_fundamentals")
-      .select("symbol, total_shares, category, sector");
+      .select("symbol, total_shares, category, sector, pe");
 
-    const fundMap = new Map<string, { total_shares: number | null; category: string | null; sector: string | null }>();
+    const fundMap = new Map<string, { total_shares: number | null; category: string | null; sector: string | null; pe: number | null }>();
     if (fundamentals) {
       for (const f of fundamentals) {
         fundMap.set(f.symbol.toUpperCase().trim(), {
           total_shares: f.total_shares,
           category: f.category,
           sector: f.sector,
+          pe: f.pe,
         });
       }
     }
@@ -85,6 +86,7 @@ serve(async (req) => {
           total_shares: fund?.total_shares ?? null,
           category: fund?.category ?? null,
           sector: fund?.sector ?? null,
+          pe: fund?.pe ?? null,
         };
       });
 
