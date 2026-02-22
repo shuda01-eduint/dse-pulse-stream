@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.update-categories]
 verify_jwt = false
+
+[functions.eod-data]
+verify_jwt = false
