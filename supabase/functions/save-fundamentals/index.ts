@@ -185,12 +185,27 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Get list of all symbols from market-data
-    const marketRes = await fetch(`${supabaseUrl}/functions/v1/market-data`, {
-      headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}` },
-    });
-    const marketJson = await marketRes.json();
-    const symbols: string[] = (marketJson.data || []).map((s: { symbol: string }) => s.symbol);
+    // Check for optional symbols filter in request body
+    let requestedSymbols: string[] | null = null;
+    try {
+      const body = await req.json();
+      if (body?.symbols && Array.isArray(body.symbols)) {
+        requestedSymbols = body.symbols.map((s: string) => s.toUpperCase().trim());
+      }
+    } catch { /* no body or invalid JSON */ }
+
+    let symbols: string[];
+    if (requestedSymbols && requestedSymbols.length > 0) {
+      symbols = requestedSymbols;
+      console.log(`Using ${symbols.length} requested symbols`);
+    } else {
+      // Get list of all symbols from market-data
+      const marketRes = await fetch(`${supabaseUrl}/functions/v1/market-data`, {
+        headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}` },
+      });
+      const marketJson = await marketRes.json();
+      symbols = (marketJson.data || []).map((s: { symbol: string }) => s.symbol);
+    }
 
     // Fetch category map from DSE
     const categoryMap = await fetchCategoryMap();
